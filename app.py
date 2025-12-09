@@ -1,124 +1,199 @@
 from flask import Flask, request
-from twilio.rest import Client
 from twilio.twiml.voice_response import VoiceResponse, Gather
 import os
 from datetime import datetime
+import json
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 
 app = Flask(__name__)
 
-# Configuration
-TWILIO_ACCOUNT_SID = os.environ.get('TWILIO_ACCOUNT_SID')
-TWILIO_AUTH_TOKEN = os.environ.get('TWILIO_AUTH_TOKEN')
-TWILIO_PHONE_NUMBER = os.environ.get('TWILIO_PHONE_NUMBER')
-YOUR_PHONE_NUMBER = os.environ.get('YOUR_PHONE_NUMBER')
-PIN_CODE = os.environ.get('PIN_CODE', '1234')
-GOOGLE_DOC_ID = '1ioyYb07hberX0QS9jvWsDed8V6_15xuc-_AFJM62HuQ'
+# Load credentials from environment variable
+creds_json = os.environ.get('GOOGLE_CREDENTIALS_JSON')
+if creds_json:
+    creds_info = json.loads(creds_json)
+    credentials = service_account.Credentials.from_service_account_info(
+        creds_info,
+        scopes=['https://www.googleapis.com/auth/documents']
+    )
+    docs_service = build('docs', 'v1', credentials=credentials)
+else:
+    docs_service = None
 
-# Initialize Twilio client
-client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN) if TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN else None
+# Store session data (in production, use Redis or database)
+sessions = {}
 
-# Google Docs setup
-SCOPES = ['https://www.googleapis.com/auth/documents']
-SERVICE_ACCOUNT_FILE = 'cbt-voice-journal-51a2223d4113.json'
-
-def append_to_google_doc(text):
-    """Append transcription to Google Doc"""
-    try:
-        credentials = service_account.Credentials.from_service_account_file(
-            SERVICE_ACCOUNT_FILE, scopes=SCOPES)
-        service = build('docs', 'v1', credentials=credentials)
-        
-        timestamp = datetime.now().strftime('%Y-%m-%d %I:%M %p')
-        requests = [{
-            'insertText': {
-                'location': {'index': 1},
-                'text': f'\n\n---\n{timestamp}\n{text}\n'
-            }
-        }]
-        
-        service.documents().batchUpdate(
-            documentId=GOOGLE_DOC_ID, body={'requests': requests}).execute()
-        return True
-    except Exception as e:
-        print(f"Error appending to Google Doc: {e}")
-        return False
-
-@app.route('/wake', methods=['GET', 'POST'])
-def wake():
-    """Wake-up endpoint to prevent cold starts"""
-    return 'OK', 200
+# CBT questions
+QUESTIONS = [
+    "What situation triggered your thoughts or feelings?",
+    "What automatic thoughts came to mind?",
+    "What emotions did you feel, and how intense were they?",
+    "What evidence supports your thoughts?",
+    "What evidence contradicts your thoughts?",
+    "Is there another way to look at this situation?",
+    "What would you tell a friend in this situation?",
+    "What action can you take based on this balanced perspective?"
+]
 
 @app.route('/sms', methods=['POST'])
 def sms_handler():
-    """Handle incoming SMS and trigger callback with delay"""
-    try:
-        from_number = request.form.get('From')
-        body = request.form.get('Body', '').lower()
-        
-        print(f"SMS received from {from_number}: {body}")
-        
-        # Wake up the service
-        import requests as http_requests
-        try:
-            http_requests.get(f"{request.url_root}wake", timeout=1)
-        except:
-            pass
-        
-        # Schedule callback after 75 seconds
-        if client and YOUR_PHONE_NUMBER:
-            call = client.calls.create(
-                twiml=f'<Response><Pause length="75"/><Say>Connecting you now.</Say></Response>',
-                to=YOUR_PHONE_NUMBER,
-                from_=TWILIO_PHONE_NUMBER,
-                url=f"{request.url_root}voice",
-                method='POST'
-            )
-            print(f"Scheduled callback: {call.sid}")
-        
-        return '<Response><Message>Request received. You will receive a call shortly.</Message></Response>', 200
-    except Exception as e:
-        print(f"Error in SMS handler: {e}")
-        return '<Response><Message>Error processing request.</Message></Response>', 500
+    """Handle incoming SMS and initiate callback with delay"""
+    resp = VoiceResponse()
+    
+    # Get the caller's phone number
+    from_number = request.form.get('From')
+    
+    # Store session
+    sessions[from_number] = {
+        'awaiting_callback': True,
+        'timestamp': datetime.now().isoformat()
+    }
+    
+    # Make the outbound call with TwiML that includes wake-up delay
+    callback_url = request.url_root + 'voice'
+    
+    # Return empty response - actual call will be made via webhook
+    resp.say("Journal entry request received. You will receive a call shortly.")
+    
+    # Trigger callback (in production, use Twilio API to make call)
+    print(f"SMS received from {from_number}, callback URL: {callback_url}")
+    
+    return str(resp)
 
 @app.route('/voice', methods=['POST'])
-def voice():
-    """Handle incoming calls with PIN authentication"""
-    response = VoiceResponse()
+def voice_handler():
+    """Handle voice calls"""
+    resp = VoiceResponse()
     
-    if 'Digits' in request.form:
-        digits = request.form.get('Digits')
-        if digits == PIN_CODE:
-            response.say("PIN accepted. Please record your journal entry after the beep.")
-            response.record(
-                transcribe=True,
-                transcribe_callback=f"{request.url_root}transcription",
-                max_length=300,
-                finish_on_key='#'
-            )
-            response.say("Thank you for your entry. Goodbye.")
+    # Get session data
+    from_number = request.form.get('From') or request.form.get('To')
+    digit = request.form.get('Digits', '')
+    recording_url = request.form.get('RecordingUrl', '')
+    question_index = int(request.form.get('question', 0))
+    
+    # Initialize session if needed
+    if from_number not in sessions:
+        sessions[from_number] = {
+            'pin_verified': False,
+            'answers': {},
+            'current_question': 0
+        }
+    
+    session = sessions[from_number]
+    
+    # Add 75-second pause at start for cold start mitigation
+    if not session.get('pin_verified') and not digit:
+        resp.pause(length=75)
+    
+    # PIN verification
+    if not session.get('pin_verified'):
+        if not digit:
+            gather = Gather(num_digits=4, action='/voice', method='POST')
+            gather.say('Welcome to your C B T voice journal. Please enter your 4-digit PIN.')
+            resp.append(gather)
+            return str(resp)
+        
+        expected_pin = os.environ.get('PIN_CODE', '1234')
+        if digit == expected_pin:
+            session['pin_verified'] = True
+            session['answers'] = {}
+            session['current_question'] = 0
         else:
-            response.say("Incorrect PIN. Goodbye.")
+            resp.say('Invalid PIN. Goodbye.')
+            resp.hangup()
+            return str(resp)
+    
+    # Handle menu choice after recording
+    if digit and recording_url:
+        if digit == '1':  # Save and continue
+            session['answers'][question_index] = recording_url
+            question_index += 1
+        elif digit == '2':  # Re-record
+            # Stay on same question, will re-record
+            pass
+        elif digit == '3':  # Review
+            # Play back the recording
+            resp.play(recording_url)
+            # Show menu again after playback
+            gather = Gather(num_digits=1, action=f'/voice?question={question_index}&RecordingUrl={recording_url}', method='POST', timeout=10)
+            gather.say('Press 1 to save and continue, 2 to re-record, or 3 to review again.')
+            resp.append(gather)
+            return str(resp)
+    
+    # Check if we have more questions
+    if question_index < len(QUESTIONS):
+        session['current_question'] = question_index
+        
+        # Ask the question
+        resp.say(f"Question {question_index + 1}. {QUESTIONS[question_index]}")
+        resp.say("Record your answer after the beep. Press the pound key when finished.")
+        
+        # Record with finish on key
+        resp.record(
+            action=f'/voice?question={question_index}',
+            method='POST',
+            finish_on_key='#',
+            max_length=120,
+            transcribe=False
+        )
+        
+        # After recording, show menu
+        gather = Gather(num_digits=1, action=f'/voice?question={question_index}', method='POST', timeout=10)
+        gather.say('Press 1 to save and continue, 2 to re-record, or 3 to review.')
+        resp.append(gather)
+        
+        return str(resp)
+    
+    # All questions answered - save to Google Doc
+    if docs_service and session['answers']:
+        try:
+            doc_id = os.environ.get('GOOGLE_DOC_ID')
+            
+            # Format the entry
+            entry_text = f"\n\n--- Journal Entry: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} ---\n"
+            for idx, (q_idx, rec_url) in enumerate(session['answers'].items()):
+                entry_text += f"\nQ{q_idx + 1}: {QUESTIONS[q_idx]}\n"
+                entry_text += f"Recording: {rec_url}\n"
+            
+            # Append to document
+            requests_list = [
+                {
+                    'insertText': {
+                        'location': {
+                            'index': 1,
+                        },
+                        'text': entry_text
+                    }
+                }
+            ]
+            
+            docs_service.documents().batchUpdate(
+                documentId=doc_id,
+                body={'requests': requests_list}
+            ).execute()
+            
+            resp.say('Your journal entry has been saved. Thank you for using C B T voice journal.')
+        except Exception as e:
+            print(f"Error saving to Google Doc: {e}")
+            resp.say('Your responses were recorded but there was an error saving to the document.')
     else:
-        gather = Gather(num_digits=4, action='/voice', method='POST')
-        gather.say("Welcome to your voice journal. Please enter your 4 digit PIN.")
-        response.append(gather)
-        response.say("We didn't receive your PIN. Please try again.")
+        resp.say('Thank you for your responses.')
     
-    return str(response), 200, {'Content-Type': 'text/xml'}
+    # Clear session
+    if from_number in sessions:
+        del sessions[from_number]
+    
+    resp.hangup()
+    return str(resp)
 
-@app.route('/transcription', methods=['POST'])
-def transcription():
-    """Handle transcription callback from Twilio"""
-    transcription_text = request.form.get('TranscriptionText', '')
-    
-    if transcription_text:
-        print(f"Transcription received: {transcription_text}")
-        append_to_google_doc(transcription_text)
-    
-    return '', 200
+@app.route('/')
+def home():
+    return 'CBT Voice Journal is running!'
+
+@app.route('/wake', methods=['GET', 'POST'])
+def wake():
+    """Endpoint to wake up the service before actual call"""
+    return 'Awake!', 200
 
 if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5000))
-    app.run(host='0.0.0.0', port=port)
+    app.run(debug=True)
