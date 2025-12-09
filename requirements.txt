@@ -1,3 +1,9 @@
 Flask==3.1.0
 twilio==9.8.0
 gunicorn==23.0.0
+google-api-python-client
+google-auth
+google-auth-httplib2
+google-auth-oauthlib
+nano requirements.txt
+
