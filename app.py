@@ -5,6 +5,7 @@ from datetime import datetime
 import json
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
+from urllib.parse import quote
 
 app = Flask(__name__)
 
@@ -12,11 +13,7 @@ app = Flask(__name__)
 try:
     with open('cbt-voice-journal-51a2223d4113.json', 'r') as f:
         creds_info = json.load(f)
-    
-    credentials = service_account.Credentials.from_service_account_info(
-        creds_info,
-        scopes=['https://www.googleapis.com/auth/documents']
-    )
+    credentials = service_account.Credentials.from_service_account_info(creds_info, scopes=['https://www.googleapis.com/auth/documents'])
     docs_service = build('docs', 'v1', credentials=credentials)
 except Exception as e:
     print(f"Error loading credentials: {e}")
@@ -58,15 +55,11 @@ def voice_handler():
     from_number = request.form.get('From') or request.form.get('To')
     digit = request.form.get('Digits', '')
     question_index = int(request.form.get('question', 0))
-    
     if from_number not in sessions:
         sessions[from_number] = {'pin_verified': False, 'answers': {}, 'current_question': 0}
-    
     session = sessions[from_number]
-    
     if not session.get('pin_verified') and not digit:
         resp.pause(length=75)
-    
     if not session.get('pin_verified'):
         if not digit:
             gather = Gather(num_digits=4, action='/voice', method='POST')
@@ -82,7 +75,6 @@ def voice_handler():
             resp.say('Invalid PIN. Goodbye.')
             resp.hangup()
             return str(resp)
-    
     question_index = session.get('current_question', 0)
     if question_index < len(QUESTIONS):
         question_text = QUESTIONS[question_index]
@@ -102,18 +94,16 @@ def recording_complete_handler():
     resp = VoiceResponse()
     from_number = request.form.get('From') or request.form.get('To')
     recording_url = request.form.get('RecordingUrl', '')
-    question_index = int(request.form.get('question', 0))
-    
+    question_index = int(request.args.get('question', '0'))
     if from_number not in sessions:
         resp.say("Session expired. Please call again.")
         resp.hangup()
         return str(resp)
-    
     session = sessions[from_number]
     session['temp_recording'] = recording_url
     session['temp_question'] = question_index
-    
-    gather = Gather(num_digits=1, action=f'/menu-choice?question={question_index}&RecordingUrl={recording_url}', method='POST')
+    encoded_url = quote(recording_url, safe='')
+    gather = Gather(num_digits=1, action=f'/menu-choice?question={question_index}&RecordingUrl={encoded_url}', method='POST')
     gather.say('Press 1 to save and continue, 2 to re-record, or 3 to review.')
     resp.append(gather)
     resp.say('No input received.')
@@ -125,16 +115,13 @@ def menu_choice_handler():
     resp = VoiceResponse()
     from_number = request.form.get('From') or request.form.get('To')
     digit = request.form.get('Digits', '')
-    recording_url = request.form.get('RecordingUrl', '')
-    question_index = int(request.form.get('question', 0))
-    
+    recording_url = request.args.get('RecordingUrl', '')
+    question_index = int(request.args.get('question', '0'))
     if from_number not in sessions:
         resp.say("Session expired. Please call again.")
         resp.hangup()
         return str(resp)
-    
     session = sessions[from_number]
-    
     if digit == '1':
         session['answers'][question_index] = recording_url
         session['current_question'] = question_index + 1
@@ -144,11 +131,13 @@ def menu_choice_handler():
     elif digit == '3':
         resp.say('Here is your recording.')
         resp.play(recording_url)
-        gather = Gather(num_digits=1, action=f'/menu-choice?question={question_index}&RecordingUrl={recording_url}', method='POST')
+        encoded_url = quote(recording_url, safe='')
+        gather = Gather(num_digits=1, action=f'/menu-choice?question={question_index}&RecordingUrl={encoded_url}', method='POST')
         gather.say('Press 1 to save and continue, 2 to re-record, or 3 to review again.')
         resp.append(gather)
     else:
         resp.say('Invalid choice.')
+        encoded_url = quote(recording_url, safe='')
         resp.redirect(url=f'/recording-complete?question={question_index}', method='POST')
     return str(resp)
 
