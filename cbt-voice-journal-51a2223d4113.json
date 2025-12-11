@@ -1,4 +1,13 @@
 {
   "type": "service_account",
   "project_id": "cbt-voice-journal",
-  "private_key_id": "51a2223d4113675f3f50d58570a45c06ca97b3c3",
+  "private_key_id": "9a919d716b717504df120f70a7795c0f3e3878ce",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQCvjR3czod1HBom\n3IVN/3zR4hVIaI64qyZCy78vE87JXGZ3jUsCKQfSYP7lMNZjczgyK/PEqv3uAcpM\n3d3iaypBtH+YoKKrxj7OziZfzaBhZLcFQE0hrfNGlH8iqKQB9bQuJOEFhTy/A152\npoCLc5jgZgWk24MMlVJUOG+QbHdWMN8cTm7PQscpKSgvjgWkrN65lJI305eaHp+s\nkjRWfHeuH5x1HxNOcnDOoaoG4+6peJHIWS4wz2l90ZL6pOB74sL1qlwpEoNiwrrq\nlbx76tJKUAjBEs4evlw0rzc90Xd9/1ka2EHGYbyhuFYJQjkMpLOnmBm2fJUNq8YR\nr/kiUdZtAgMBAAECggEANF5+FpU73ok0Gfy1/acmNrxhifi6/sb7wnhif6pCiVo5\nrRdm1W2lCjLqRzfS9Nb14C2xai1yU/KPxW94VieO8wvj9oWREXox2WKxGupOGk+/\ns17Tw6TPSnJZHN8/EeCY0B0rTYjKLtdT8kRIW5Fv/R0iOORNC09uQHaXfXeGAB1U\nbVNOzu2D2HB+xgzUtUsuh+pLE8IpIwcCO4MANT+8fAKezDj9y83djoUZDL/6EKis\nAEIVgV9mLuuX20iMjMyxWg+goVKGUCt4l0QcaLIyy+cOTx7h7s1kzYsECW+QsvGB\nzqMf9q0YTCMDcbVYaKj5UcwLVrG0Zqtzx7sqvd109wKBgQDh0T2+xriAfobza6lK\nkDKVWXMnqQm954yrGQJdBreIEA28+XoZ72kQAB+jSt3HFTOp2+lhvxGpbpBA4raU\n25lIvTFZseojZRHQAUCiOhodc26hSj1+3NOTsv31NRo35xU5d6HguW9C6J7tE+p2\n1gPtoWKjg7OrgvqZjuPPaHM78wKBgQDHA+1nPuI/GT/v6952NyjL7KJ16piT8sUB\nslZDN+mGY3OrlEpoPJwP8BRkttaeQe3cCprXuBQWM+i1PRFHbMH+zbVpPkR8lG94\nC5JFMHNo3xsK30OnjnLxX+5f4GdYYilW7SMcCinzJmL/tceA+kBzwXw3B0PuklWj\njHs/RbUcHwKBgCpeH7+TeTpigt9Y68JZm6P5zGk8hd9jejj/0Dmz8OtOV8WE6SvE\nh2nBHC5+9W1MxQyxffAg8Sdg3x/NaYQ0T2YeWQwDHXLWm6jzEzVcwVmVNsR8MV2E\nAQ5NHujKtciXSpwlnfGT2RQsoOTKP8tcDBChnuge5a7gPDRjYsqfRj+RAoGAVlYG\n1KZ8IiGDEkNCBAjT4vuqUvtN68kC3ESQlaKY5VsZoBK54NSCY4ukXTjQjGFPngjf\nubu6wxML3iw65cBxvGdjTt/beCww22QxtWBagOFg6uuGfxcWGE6kq+U/ECGti29e\nrthd8ITzp7klbneiJFWI3JqDRukmy8ey4/UKp8MCgYBHehduKdvk8foOprtpn5oJ\nCU8ojLIIVvGECJ06zk10TND8q2NEhM7mTFotUzUZ93C2jdB7pSqIqh2t464Iekx7\nKN+KVhs87unpYCGDURcp6pdxX9cNst+Pc2Jx1p5CarcVELxBAoKvsdznv7lyAPmZ\nR5Dz9DhJnT+Zpo2F6R/Exg==\n-----END PRIVATE KEY-----\n",
+  "client_email": "cbt-voice-journal-writer@cbt-voice-journal.iam.gserviceaccount.com",
+  "client_id": "104460019652072387184",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/cbt-voice-journal-writer%40cbt-voice-journal.iam.gserviceaccount.com",
+  "universe_domain": "googleapis.com"
+}
