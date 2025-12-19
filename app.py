@@ -25,7 +25,7 @@ def voice():
     response.append(gather)
     
     response.say("We did not receive your PIN. Goodbye.")
-    return str(response)
+    return str(response), 200, {'Content-Type': 'text/xml'}
 
 @app.route('/handle-pin', methods=['POST'])
 def handle_pin():
@@ -52,7 +52,7 @@ def handle_pin():
     else:
         response.say("Invalid PIN. Goodbye.")
     
-    return str(response)
+    return str(response), 200, {'Content-Type': 'text/xml'}
 
 @app.route('/save-pastor-message', methods=['POST'])
 def save_pastor_message():
@@ -65,7 +65,7 @@ def save_pastor_message():
     
     response = VoiceResponse()
     response.say("Thank you Pastor Jason. Your message has been saved. Goodbye.")
-    return str(response)
+    return str(response), 200, {'Content-Type': 'text/xml'}
 
 @app.route('/play-pastor-message', methods=['POST'])
 def play_pastor_message():
@@ -87,7 +87,7 @@ def play_pastor_message():
         action='/handle-response-menu'
     )
     
-    return str(response)
+    return str(response), 200, {'Content-Type': 'text/xml'}
 
 @app.route('/handle-response-menu', methods=['POST'])
 def handle_response_menu():
@@ -104,7 +104,7 @@ def handle_response_menu():
     response.say("No option selected. Saving your response. Goodbye.")
     response.redirect('/save-response')
     
-    return str(response)
+    return str(response), 200, {'Content-Type': 'text/xml'}
 
 @app.route('/process-menu-choice', methods=['POST'])
 def process_menu_choice():
@@ -131,7 +131,7 @@ def process_menu_choice():
     else:
         response.say("Invalid option. Goodbye.")
     
-    return str(response)
+    return str(response), 200, {'Content-Type': 'text/xml'}
 
 @app.route('/save-response', methods=['POST', 'GET'])
 def save_response():
@@ -148,7 +148,7 @@ def save_response():
     
     response = VoiceResponse()
     response.say("Your response has been saved. Thank you and God bless. Goodbye.")
-    return str(response)
+    return str(response), 200, {'Content-Type': 'text/xml'}
 
 @app.route('/recording-status', methods=['POST'])
 def recording_status():
