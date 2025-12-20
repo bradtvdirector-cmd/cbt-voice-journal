@@ -61,7 +61,7 @@ def save_pastor_message():
     recording_url = request.form.get('RecordingUrl')
     
     if recording_url:
-        pastor_message['url'] = recording_url
+        pastor_message['url'] = recording_url + '.mp3'
         pastor_message['timestamp'] = datetime.now().isoformat()
     
     response = VoiceResponse()
